@@ -1,0 +1,26 @@
+# Nucleotide codes
+# U in RNA takes the same position as T in DNA
+# U is used in nucleotide-amino mapping table, nuc2ami.txt
+# nucleoamino automatically converts T to U in source sequence
+# From https://www.bioinformatics.org/sms/iupac.html
+
+A	Adenine
+C	Cytosine
+G	Guanine
+T	Thymine
+U	Uracil
+
+R	[AG]
+Y	[CT]
+S	[GC]
+W	[AT]
+K	[GT]
+M	[AC]
+B	[CGT]
+D	[AGT]
+H	[ACT]
+V	[ACG]
+N	[ACGT]
+
+.	gap
+-	gap

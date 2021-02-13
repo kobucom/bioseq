@@ -1,0 +1,13 @@
+#!/bin/bash
+# remove the first line and newlines from a FASTA file (or stdin)
+# the output (stdout) is a single line of concatenated sequences
+# Usage: rawfasta test.fasta  <- reads from file
+#        rawfasta             <- reads from stdin 
+# input:
+#  >header
+#  ATGCATGC
+#   ...
+#  ATGC
+# will generate:
+#  ATGCATGCATGC
+tail -n +2 $1 | tr -d '\n'

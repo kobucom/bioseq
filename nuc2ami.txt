@@ -1,0 +1,33 @@
+# mapping table from nucleotide triplets to amino acid short names
+# a triplet can be a regexp pattern (not motif pattern)
+# animo short names are listed in the second column of amino.txt
+# see comment in nucle.txt for handling of U and T
+# From https://www.genome.gov/genetics-glossary/Genetic-Code 
+
+UU[UC]	Phe
+UU[AG]	Leu
+UC.	Ser
+UA[UC]	Tyr
+UG[UC]	Cys
+UGA	Stp
+UGG	Trp
+CU.	Leu
+CC.	Pro
+CA[UC]	His
+CA[AG]	Gln
+CG.	Arg
+AU[UCA]	Ile
+AUG	Met
+AC.	Thr
+AA[UC]	Asn
+AA[AG]	Lys
+AG[UC]	Ser
+AG[AG]	Arg
+GU.	Val
+GC.	Ala
+GA[UC]	Asp
+GA[AG]	Glu
+GG.	Gly
+
+UA[AG]	Stp
+NNN Non
