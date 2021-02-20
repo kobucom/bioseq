@@ -386,6 +386,6 @@ Contact Kobu.Com for other types of licenses.
 ## History
 
 2021-feb-09 first edition  
-2021-feb-19 modshunt: exec time reduction of 40%  
+2021-feb-19 modshunt: exec time reduction by 40%  
 2021-feb-19 modshunt: format option (-fx) for debug     
 2021-feb-20 necuoamino: fasta option (-f) 
