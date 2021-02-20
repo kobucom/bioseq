@@ -1,8 +1,9 @@
-# mapping table from nucleotide triplets to amino acid short names
-# a triplet can be a regexp pattern (not motif pattern)
-# animo short names are listed in the second column of amino.txt
-# see comment in nucle.txt for handling of U and T
+# Mapping table from nucleotide triplets to amino acid short names
 # From https://www.genome.gov/genetics-glossary/Genetic-Code 
+# Used by nucleoamino and motifgrep. 
+# A triplet can be a regexp pattern (not motif pattern)
+# Animo short names are listed in the second column of amino.txt.
+# See comment in nucle.txt for handling of U and T.
 
 UU[UC]	Phe
 UU[AG]	Leu

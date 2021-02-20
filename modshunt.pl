@@ -1,6 +1,6 @@
 #!/usr/bin/env perl
 
-# ModsHunt - find differences (and identities) in two sequences
+# ModsHunt - find differences (and identities) in two bio-sequences
 # Copyright (c) 2021 Kobu.Com. All rights reserved.
 # Visit Kobu.Com at https://kobu.com/bioseq/
 # Licensed by GNU Public License v3
@@ -9,6 +9,7 @@
 # ModsHunt searches two input sequences and shows differences in them
 # Core functions used in ModsHunt, lcss and split3, are moved to huntutil.pm.
 # This file contains a variety of 'show' functions for comparison result output. 
+# The default format is 'single-view' below.
 #
 # Example:
 # $ cat orginal.fasta
@@ -22,14 +23,11 @@
 # $ modshunt original.fasta variant.fasta
 #  ATATATCAGAG{12-ddd}AGCA{19^rrr/RRR}GAGAGC{28+iii}
 #
-# Hint: ModsHunt supports four output formats. The default single-view format is
-# used in the example above. See usage() below for what format options are available.
-#
-# Note: This code uses not-very-appropriate words: 'src' for source and 'dst' for destination,
-# meaning an original string and its comparison target, respectively.
+# ModsHunt supports four output formats. 
+# See usage() below for what format options are available.
 #
 # Note: The name 'modshunt' came from the name of a text document diff tool used in our house very long time.
-# 'mods' or 'modifications' to a text document corresponds to a variation in a bio-sequence.
+# 'mods' or 'modifications' to a text document corresponds to mutations in a bio-sequence.
 #
 # 2021/01/28 started
 # 2021/01/29 lcss()
@@ -37,7 +35,7 @@
 # 2021/02/01 single view
 # 2021/02/04 ranges in tab-separated, json
 # 2021/02/05 double view
-# 2021/02/06 huntutil.pm
+# 2021/02/06 lcss() and split3() moved to huntutil.pm
 
 use strict;
 use warnings;
@@ -46,8 +44,9 @@ use List::Util qw(min);
 
 # support library
 use lib "$ENV{BIOSEQ}";
-use bioutil qw(readfasta segment string);
-use huntutil qw(split3 SYNC DIFF INS DEL);
+use bioutil qw(readfasta segment string shorter);
+use huntutil qw(split3 rangeName SYNC DIFF INS DEL);
+# use huntutil_sl qw(split3 SYNC DIFF INS DEL);
 use buffer;
 
 # constants
@@ -72,10 +71,14 @@ my $debug = 0;
 
     # output all lane buffers then reset them for the next line
     sub flushAll {
-        print $upper->{num}->{str} . "\n";
-        print $upper->{seq}->{str} . "\n";
-        print $lower->{seq}->{str} . "\n";
-        print $lower->{num}->{str} . "\n\n";
+        my $un = $upper->{num}->{str}; $un =~ s/ +$//;
+        my $us = $upper->{seq}->{str}; $us =~ s/ +$//;
+        my $ls = $lower->{seq}->{str}; $ls =~ s/ +$//;
+        my $ln = $lower->{num}->{str}; $ln =~ s/ +$//;
+        print "$un\n";
+        print "$us\n";
+        print "$ls\n";
+        print "$ln\n\n";
         $upper->{num}->clear();
         $upper->{seq}->clear();
         $lower->{seq}->clear();
@@ -224,16 +227,25 @@ sub showInJson {
     print "]\n"; # end array
 }
 
-# showRanges(\@ranges)
+# showRanges(\@ranges, $x_option)
 # output range list as tab-separated text
 # type spos+slen dpos+dlen "src" "dst"
+# partial strings are displayed if $x_option specified (debug purpose)
 sub showRanges {
-    my $ranges = shift;
+    my ($ranges, $x_option) = @_;
     foreach my $r (@{$ranges}) {
-        print "$r->{type}\t" . 
+        my $type = $r->{type};
+        my $src = string($r->{src});
+        my $dst = string($r->{dst});
+        if ($x_option) {
+            $type = rangeName($type);
+            $src = shorter($src);
+            $dst = shorter($dst);
+        }
+        print "$type\t" . 
             ($r->{src}->{pos} + 1) . "+$r->{src}->{len}\t" .
             ($r->{dst}->{pos} + 1) . "+$r->{dst}->{len}\t\"" .
-            string($r->{src}) . "\"\t\"" . string($r->{dst}) . 
+            $src . "\"\t\"" . $dst . 
             "\"\n";
     }
 }
@@ -290,7 +302,7 @@ sub main {
         if ($arg =~ /^-/) {
             if ($arg eq '-d') { $debug = 1; }
             elsif ($arg eq '-t') { $debug = 2; }
-            elsif ($arg =~ /^-f([sdtj])$/) { $fmt = $1; }
+            elsif ($arg =~ /^-f([sdtjx])$/) { $fmt = $1; }
             else {
                 print STDERR "No such option: $arg\n";
                 usage();
@@ -305,6 +317,7 @@ sub main {
     my $dst = getData($arg2);
     my @ranges = split3($src, $dst);
     if ($fmt eq 't') { showRanges(\@ranges); } # ranges in tab-separated
+    elsif ($fmt eq 'x') { showRanges(\@ranges, true); } # ditto but shorter strings (debug)
     elsif ($fmt eq 'j') { showInJson(\@ranges); } # ranges in json
     elsif ($fmt eq 'd') { showInDouble(\@ranges); } # double view
     else { show(\@ranges); } # single view (default)

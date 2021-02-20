@@ -1,5 +1,7 @@
-# amino acid table: code, short name, long name
+# Amino acid table: code, short name, long name
 # From https://www.bioinformatics.org/sms/iupac.html
+# Used by nucleoamino and motifgrep. 
+
 A	Ala	Alanine
 C	Cys	Cysteine
 D	Asp	Aspartic Acid

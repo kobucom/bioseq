@@ -32,6 +32,8 @@
 # 2021/01/27 written
 # 2021/02/01 readfasta
 # 2021/02/02 span option
+# 2021/02/14 build internal array from loaded tables
+# 2021/02/20 -fasta option
 
 use strict;
 use warnings;
@@ -41,7 +43,7 @@ use lib "$ENV{BIOSEQ}";
 use bioutil qw(readfasta segment string load find);
 
 # constants
-use constant { true => 1, false => 0 };
+use constant { true => 1, false => 0, AMINOS_PER_LINE => 70 };
 
 # debug
 use Data::Dumper qw(Dumper);
@@ -49,60 +51,74 @@ use Data::Dumper qw(Dumper);
 my $debug = 0;
 
 {
-    # TODO: build nucleo triplet amino code table before hand
+    my @n3a1_table = (); # nucleotide triplet pattern (n3) to amino code (a1) mapping array
 
-    my $nuc2ami_table = load("nuc2ami.txt");
-    if ($debug > 1) { print Dumper($nuc2ami_table); }
-
-    my $amino_table = load("amino.txt");
-    if ($debug > 1) { print Dumper($amino_table); }
-
-    # $amino = nucle2amino($nucles)
-    # return an amino acid code for a nucleotide tuple
-    sub nucle2amino {
+    # $amino_code = nucleo2amino($nucleo_triplet)
+    # return an amino acid code for a nucleotide triplet
+    sub nucleo2amino {
         my $triple = shift;
-        my $code = undef;
-        my $name = find($nuc2ami_table, $triple, 0, 1);
-        if ($name) {
-            $code = find($amino_table, $name, 1, 0);
+
+        # load tables and build an internal array on the first call
+        if (@n3a1_table == 0) {
+            my $nuc2ami_table = load("nuc2ami.txt");
+            if ($debug > 1) { print STDERR Dumper($nuc2ami_table); }
+
+            my $amino_table = load("amino.txt");
+            if ($debug > 1) { print STDERR Dumper($amino_table); }
+
+            foreach my $na (@{$nuc2ami_table}) {
+                my $nucleo_pattern = $na->[0];
+                my $amino_name = $na->[1];
+                my $amino_code = find($amino_table, $amino_name, 1, 0);
+                if ($debug) { print STDERR "$nucleo_pattern -> $amino_code\n"; }
+                push(@n3a1_table, { n3 => $nucleo_pattern, a1 => $amino_code });
+            }
         }
-        if ($debug) {
-            print "nucle2amino: $triple -> " .
-                ($name ? $name : "???") . " -> " . 
-                ($code ? $code : "?") . "\n";
-        };
+
+        my $code = undef;
+        my $pattern = undef; # debug
+        foreach my $na (@n3a1_table) {
+            if ($triple =~ m/$na->{n3}/) {
+                $pattern = $na->{n3};
+                $code = $na->{a1};
+                last;
+            }
+        }
+        if ($debug) { print STDERR "nucleo2amino: $triple -> " . ($pattern ? $pattern : '???') . " -> " . ($code ? $code : '?') . "\n"; }
         return $code;
     }
 }
 
-sub test_nucle2amino {
+sub test_nucleo2amino {
     $debug = 1;
     foreach my $nuc ("UUA", "UUG", "UGA", "UCA", "XXX") {
-        my $amino = nucle2amino($nuc);
+        my $amino = nucleo2amino($nuc);
         print "" . ($amino ? $amino : '?') . "\n";
     }
 }
 
-# $output = convert($line)
+# $output = convert($line, [$fasta])
 # convert nucleotide sequence to amino acid sequence
+# if $fasta is true newlines are added; header has been output in main()
 sub convert {
-    my $line = shift;
+    my ($line, $fasta) = @_;
     my $len = length($line);
     my $len2 = int($len / 3) * 3; # truncate
-    my $outstr = '';
     for (my $i = 0; $i < $len2; $i += 3) {
         my $triple = substr($line, $i, 3);
-        my $single = nucle2amino($triple);
+        my $single = nucleo2amino($triple);
         if ($single) {
-            $outstr .= $single;
+            print $single;
         }
         else {
-            if ($debug) { $outstr .= ( '(' . $triple . ')' ); }
-            else { $outstr .= 'x'; }
+            if ($debug) { print '(' . $triple . ')'; }
+            else { print 'x'; }
         }
+        if ($fasta && ($i % (AMINOS_PER_LINE * 3) == (AMINOS_PER_LINE * 3) - 3)) {
+            print "\n";
+        } 
     }
     if ($len != $len2) { print STDERR "convert: line truncated from $len to $len2\n"; }
-    return $outstr;
 }
 
 sub test_convert {
@@ -147,19 +163,22 @@ sub test_cutData {
 }
 
 sub usage {
-    print STDERR "Usage: nucleamino [-s<span>] [fastafile]\n";
-    print STDERR " <span> = N-M where N'th to M'th chars are checked, " .
-                 "          N+M where M chars from N'th position are checked.\n";
+    print STDERR "Usage: nucleamino [-f] [-s<span>] [fastafile]\n";
+    print STDERR " -f: output in fasta format\n";
+    print STDERR " -s<span> = N-M where N'th to M'th chars are checked,\n" .
+                 "            N+M where M chars from N'th position are checked.\n";
     exit 1;
 }
 
 sub main {
     my $path = '';
     my $span = '';
+    my $fasta = false;
     foreach my $arg (@ARGV) {
         if ($arg =~ /^-/) {
             if ($arg eq '-d') { $debug = 1; }
             elsif ($arg eq '-t') { $debug = 2; }
+            elsif ($arg eq '-f') { $fasta = true; }
             elsif ($arg =~ /^-s(.+)$/) { $span = $1; }
             else {
                 print STDERR "No such option: $arg\n";
@@ -172,12 +191,13 @@ sub main {
     my $line = readfasta($path); # read a single line from a file or stdin
     if ($span) { $line = string(cutData($line, $span)); }
     $line =~ tr/T/U/; # U -> T; nuc2ami.txt contains U instead of T
-    my $outstr = convert($line);
-    print "$outstr\n";
+    if ($fasta) { print "> " . ($path ? $path : '(stdin)') . " converted by nucleoamino\n"; }
+    convert($line, $fasta);
+    print "\n";
 }
 
 # test
-#test_nucle2amino();
+#test_nucleo2amino();
 #test_convert();
 #test_cutData();
 

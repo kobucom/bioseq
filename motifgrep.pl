@@ -27,6 +27,7 @@
 # 2021/01/27 written
 # 2021/02/01 readfasta()
 # 2021/02/09 amino2nucleo()
+# 2021/02/14 build internal hash from loaded tables
 
 use strict;
 use warnings;
@@ -44,45 +45,55 @@ use Data::Dumper qw(Dumper);
 my $debug = 0;
 
 {
-    # TODO: build amino code to nucleo triplet table before hand
-
-    my $amino_table = load("amino.txt");
-    if ($debug > 1) { print Dumper($amino_table); }
-
-    my $nuc2ami_table = load("nuc2ami.txt");
-    if ($debug > 1) { print Dumper($nuc2ami_table); }
+    my $a1n3_table = {}; # hash of amino code to nucleo triplet pattern
 
     # $nucleos = amino2nucleo($aminos, [$useU])
-    # convert known amino codes to corresponding nucleotide patterns
-    # eg. N x Y -> UA[UC] xxx AA[UC]
-    # it is an error to pass a non-amino character except 'x' which is converted to 'xxx'
-    # TODO: support [..] or {..} ? N[YA] will be something like AA[UC](UA[UC]|GCx)
+    # convert a string of amino codes to corresponding nucleotide patterns in regexp
+    # eg. 'NxY' -> 'UA[UC].{3}AA[UC]'
+    # 'YGFxxTx' -> 'TA[TC]GG.TT[TC].{3}.{3}AC..{3}'
+    # the amino string can contain 'x' which is converted to 'xxx'
+    # other motif patterns are not accepted (currently)
+    # TODO: support [..] and {..}?  N[YA] will should be AA[UC](UA[UC]|GC.)
     sub amino2nucleo {
-        my ($amino, $useU) = @_;
-        my @nucleo =();
-        foreach my $code (split(//, $amino)) {
-            my $result = undef;
+        my ($aminos, $useU) = @_;
+
+        if (!keys %{$a1n3_table}) {
+            my $amino_table = load("amino.txt");
+            if ($debug > 1) { print Dumper($amino_table); }
+
+            my $nuc2ami_table = load("nuc2ami.txt");
+            if ($debug > 1) { print Dumper($nuc2ami_table); }
+
+            foreach my $a (@{$amino_table}) {
+                my $amino_code = $a->[0];
+                my $amino_name = $a->[1];
+                my $triple = find($nuc2ami_table, $amino_name, 1, 0);
+                if ($debug > 1) { print STDERR "$amino_code -> $triple\n"; }
+                $a1n3_table->{$amino_code} = $triple;
+            }
+        }
+
+        my @nucleos = ();
+        foreach my $code (split(//, $aminos)) {
+            my $triple = undef;
             if ($code eq 'x') {
-                $result = 'xxx'; # wildcard triple .. TODO: put this in table?
+                $triple = '.{3}'; # wildcard triple .. TODO: put this in table?
             }
             else {
-                my $name = find($amino_table, $code, 0, 1);
-                if ($name) {
-                    my $triple = find($nuc2ami_table, $name, 1, 0);
-                    if ($triple) { $result = $triple; }
-                }
-                die "amino2nucleo: not an amino code: $code" unless $result;
+                $triple = $a1n3_table->{$code};
+                die "amino2nucleo: not an amino code: $code" unless $triple;
             }
-            push(@nucleo, $result);
+            push(@nucleos, $triple);
         }
-        my $motif = join('', @nucleo);
-        if (!$useU) { $motif =~ tr/U/T/; }
-        return $motif;
+        my $regexp = join('', @nucleos);
+        if (!$useU) { $regexp =~ tr/U/T/; }
+        return $regexp;
     }
 }
 
 sub test_amino2nucleo {
-    foreach my $a ("N", "NY", "NXY", "N[YA]") {
+    $debug = 2;
+    foreach my $a ("N", "NY", "NxY", "X") {
         print "$a -> " . amino2nucleo($a) . "\n";
     }
 }
@@ -172,12 +183,13 @@ sub main {
         else { usage; }
     }
     if (!$motif) { usage(); }
+    my $regexp;
     if ($nucleo) {
-        my $amino = $motif;
-        $motif = amino2nucleo($amino, $useU);
-        if ($debug) { print STDERR "amino '$amino' -> "; }
+        $regexp = amino2nucleo($motif, $useU);
     }
-    my $regexp = motif2regexp($motif);
+    else {
+        $regexp = motif2regexp($motif);
+    }
     if ($debug) { print STDERR "motif '$motif' -> regexp '$regexp'\n"; }
     my $line = readfasta($path); # read a single line from a file or stdin
     grepline($regexp, $line);

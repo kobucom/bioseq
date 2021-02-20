@@ -138,10 +138,13 @@ NecleoAmino automatically converts T's to U's before conversion.
 
 ### Usage
 
-- **nucleoamino** [**-s***span*] [*fastafile*]
+- **nucleoamino** [-**f**] [**-s***span*] [*fastafile*]
 
 A *path* is a filename of a FASTA file to convert.
 If you omit *path*, NucleoAmino reads from the standard input.
+
+The `-f` option specifies the output should be in FASTA format.
+Otherwise the sequence data is output in raw format (no header, no newlines).
 
 Using the -**s***span* option, you can specify where to start and end conversion instead of converting an entire sequence.
 
@@ -192,6 +195,7 @@ The **-f***fmt* option determines the output format:
 | -fs | Single view | Source sequence shown intermixed with differences | Default |
 | -fd | Double view | Source and target sequences shown in parallel | |
 | -ft | Tab-seperated ranges | list of paired regions (identical or different) in tab-separated format | |
+| -fx | Tab-separated ranges | Same as `-ft` but easier to read for human | Debug | 
 | -fj | Ranges in Json | list of paired regions in Json format | |
 
 The single view format is used if the format options is not passed.
@@ -296,6 +300,19 @@ The elements in a range line are separated by a tab:
 | "*string*" | sequence of the source region | "GGTTTA" |
 | "*string*" | sequence of the target regiion | "rrrrrr" |
 
+Format option of `-fx` works the same way as the tab-separated option (-ft) excpet that a range type is shown in a simple name and sequences are displayed shorter.
+
+```
+$ modshunt -fx reference.fasta variant.fasta
+sync    1+6     1+6     "ATTAAA"        "ATTAAA"
+diff    7+6     7+6     "GGTTTA"        "rrrrrr"
+sync    13+36   13+36   "TACCTTC..."    "TACCTTC..."
+del     49+6    49+0    "dddddd"        ""
+sync    55+60   49+60   "AGATCTG..."    "AGATCTG..."
+ins     115+0   109+6   ""              "iiiiii"
+sync    115+6   115+6   "TGCACT"        "TGCACT"
+```
+
 The next example shows the Json range list format:
 
 ```
@@ -369,3 +386,6 @@ Contact Kobu.Com for other types of licenses.
 ## History
 
 2021-feb-09 first edition  
+2021-feb-19 modshunt: exec time reduction of 40%  
+2021-feb-19 modshunt: format option (-fx) for debug     
+2021-feb-20 necuoamino: fasta option (-f) 

@@ -1,8 +1,9 @@
 # Nucleotide codes
-# U in RNA takes the same position as T in DNA
-# U is used in nucleotide-amino mapping table, nuc2ami.txt
-# nucleoamino automatically converts T to U in source sequence
 # From https://www.bioinformatics.org/sms/iupac.html
+# This file is not currently used by any utilities.
+# U in RNA takes the same position as T in DNA.
+# U is used in the nucleotide-amino mapping table, nuc2ami.txt.
+# Nucleoamino automatically converts T to U in source sequence.
 
 A	Adenine
 C	Cytosine

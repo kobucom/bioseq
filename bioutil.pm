@@ -7,6 +7,7 @@
 # https://www.gnu.org/licenses/gpl-3.0.en.html
 #
 # 2021/02/01 readfasta()
+# 2021/02/20 shorter()
 
 package bioutil;
 
@@ -16,13 +17,17 @@ use warnings;
 require Exporter;
 use vars qw(@ISA @EXPORT_OK);
 @ISA = qw(Exporter);
-@EXPORT_OK = qw(readfasta segment string load find);
+@EXPORT_OK = qw(readfasta segment string shorter load find);
 
 # debug
 use Data::Dumper qw(Dumper);
 
 # constants
-use constant { true => 1, false => 0 };
+use constant { true => 1, false => 0, TRUNCATE_LENGTH => 15 };
+
+# Tab-separated parameter files
+# - Items are separated by one tab
+# - A blank or #-staring line is ignored
 
 # \@array = load($filename)
 # load a tab-separated file into an array (ref) of arrays (ref)
@@ -40,14 +45,13 @@ sub load {
 }
 
 # $match = find(\@table, $key, $n, $m)
-# search @table and return $m'th value in the line where $key matches $n'th value
+# search 'loaded' @table and return $m'th value in the line where $key matches $n'th value
 sub find {
     my ($table_ref, $key, $n, $m) = @_;
     foreach my $item_ref (@{$table_ref}) {
         my @items = @{$item_ref};
         my $vn = $items[$n];
-        # if the value is a pattern do pattern match otherwise exact equality
-        if ($vn =~ m/[[{.]/ && $key =~ m/$vn/ || $vn eq $key) { return $items[$m]; }
+        if ($vn eq $key) { return $items[$m]; }
     }
     return undef;
 }
@@ -56,10 +60,12 @@ sub find {
 
 # $segment_ref = segment($str, [$pos, [$len]]])
 # build a segment hash reference from the raw string, start position and the length.
-# defaults: $pos == zero, $len == entire string
+# defaults: $pos: zero, $len: entire string or rest of the string if $pos is non-zero
 sub segment {
     my ($str, $pos, $len) = @_;
-    return { str => $str, pos => (defined($pos) ? $pos : 0), len => (defined($len) ? $len : length($str)) };
+    if (!defined($pos)) { $pos = 0; }
+    if (!defined($len)) { $len = length($str) - $pos; }
+    return { str => $str, pos => $pos, len => $len };
 }
 
 sub test_segment {
@@ -67,6 +73,7 @@ sub test_segment {
     print Dumper(segment($str));
     print Dumper(segment($str, 1));
     print Dumper(segment($str, 1, 3));
+    print Dumper(segment($str, undef, 3));
 }
 
 # $substr_string = string($segment_ref)
@@ -82,6 +89,19 @@ sub test_string {
     print string(segment($str)) . "\n";
     print string(segment($str, 1)) . "\n";
     print string(segment($str, 1, 3)) . "\n";
+    print string(segment($str, undef, 3)) . "\n";
+}
+
+# for debugging
+# $debug_string = shorter($str)
+# return a shorter string with '...' added
+# "hello" -> "hello", "hello everyone" -> "hello eve..."
+sub shorter {
+    my $s = shift;
+    if (length($s) > TRUNCATE_LENGTH) {
+        $s = substr($s, 0, TRUNCATE_LENGTH) . "...";
+    }
+    return $s;
 }
 
 # $data = readfasta($path)
